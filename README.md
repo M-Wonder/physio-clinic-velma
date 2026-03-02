@@ -20,9 +20,9 @@ docker compose up --build
 docker compose exec backend python manage.py seed_data
 ```
 
-- Frontend: http://localhost:3000
-- API: http://localhost:8000/api/
-- Docs: http://localhost:8000/api/docs/
-- Admin: http://localhost:8000/admin/
+- Frontend: http://localhost:3030
+- API: http://localhost:8080/api/
+- Docs: http://localhost:8080/api/docs/
+- Admin: http://localhost:8080/admin/
 
 Default admin: admin@physio.clinic / Admin@12345
