@@ -5,9 +5,9 @@ import { authAPI } from '../api/endpoints'
 import { useAuthStore } from '../store/authStore'
 
 export default function LoginPage() {
-  const [form, setForm] = useState({ email: '', password: '' })
+  const [form, setForm]     = useState({ email: '', password: '' })
   const [showPw, setShowPw] = useState(false)
-  const [error, setError] = useState('')
+  const [error, setError]   = useState('')
   const [loading, setLoading] = useState(false)
   const { setAuth } = useAuthStore()
   const navigate = useNavigate()
@@ -22,7 +22,15 @@ export default function LoginPage() {
       setAuth(user, access, refresh)
       navigate('/dashboard')
     } catch (err) {
-      setError(err.response?.data?.error || 'Invalid email or password.')
+      // DRF SimpleJWT returns errors as 'detail', not 'error'
+      const data = err.response?.data
+      if (data?.detail) {
+        setError(data.detail)
+      } else if (data?.non_field_errors) {
+        setError(data.non_field_errors[0])
+      } else {
+        setError('Invalid email or password. Please try again.')
+      }
     } finally {
       setLoading(false)
     }
@@ -79,10 +87,13 @@ export default function LoginPage() {
             </button>
           </form>
           <p className="text-center text-sm text-gray-500 mt-4">
-            Don't have an account? <Link to="/register" className="text-emerald-600 font-medium">Register</Link>
+            Don't have an account?{' '}
+            <Link to="/register" className="text-emerald-600 font-medium">Register</Link>
           </p>
-          <div className="mt-4 pt-4 border-t border-gray-100">
-            <p className="text-xs text-gray-400 text-center">Demo: patient@example.com / Patient@12345</p>
+          <div className="mt-4 pt-4 border-t border-gray-100 space-y-1">
+            <p className="text-xs text-gray-400 text-center font-medium">Demo credentials:</p>
+            <p className="text-xs text-gray-400 text-center">patient@example.com / Patient@12345</p>
+            <p className="text-xs text-gray-400 text-center">dr.sarah.mitchell@physio.clinic / Doctor@12345</p>
           </div>
         </div>
       </div>
