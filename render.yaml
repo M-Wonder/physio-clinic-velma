@@ -5,12 +5,14 @@ databases:
     databaseName: physio_clinic
     user: physio_clinic_user
 
-redis:
-  - name: physio-clinic-redis
+services:
+  # Redis Cache
+  - type: redis
+    name: physio-clinic-redis
     plan: starter
     region: oregon
+    ipAllowList: []
 
-services:
   # Django Backend API Service
   - type: web
     name: physio-clinic-backend
