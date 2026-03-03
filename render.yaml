@@ -9,14 +9,13 @@ redis:
   - name: physio-clinic-redis
     plan: starter
     region: oregon
-    # maxmemoryPolicy has been removed - not a valid field
 
 services:
   # Django Backend API Service
   - type: web
     name: physio-clinic-backend
     runtime: python
-    repo: https://github.com/M-Wonder/physio-clinic-velma  # Updated with your username
+    repo: https://github.com/M-Wonder/physio-clinic-velma
     plan: starter
     region: oregon
     branch: main
@@ -76,13 +75,13 @@ services:
       - key: DJANGO_SUPERUSER_EMAIL
         value: admin@physio-clinic.com
       - key: DJANGO_SUPERUSER_PASSWORD
-        sync: false  # Set this manually in Render dashboard
+        sync: false
 
   # React Frontend Static Site
   - type: web
     name: physio-clinic-frontend
     runtime: static
-    repo: https://github.com/M-Wonder/physio-clinic-velma  # Updated with your username
+    repo: https://github.com/M-Wonder/physio-clinic-velma
     plan: starter
     region: oregon
     branch: main
@@ -103,7 +102,7 @@ services:
   - type: worker
     name: physio-clinic-celery-worker
     runtime: python
-    repo: https://github.com/M-Wonder/physio-clinic-velma  # Updated with your username
+    repo: https://github.com/M-Wonder/physio-clinic-velma
     plan: starter
     region: oregon
     branch: main
@@ -136,7 +135,7 @@ services:
   - type: worker
     name: physio-clinic-celery-beat
     runtime: python
-    repo: https://github.com/M-Wonder/physio-clinic-velma  # Updated with your username
+    repo: https://github.com/M-Wonder/physio-clinic-velma
     plan: starter
     region: oregon
     branch: main
