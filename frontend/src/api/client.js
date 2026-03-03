@@ -1,14 +1,18 @@
 /**
  * Axios API client
- * Uses relative /api path — Vite dev server proxies it to the backend container.
- * Never hardcode localhost here — it breaks inside Docker.
+ * - Local Docker: uses Vite proxy via relative /api path
+ * - Render static site: uses VITE_API_URL baked in at build time
  */
 import axios from 'axios'
 import { useAuthStore } from '../store/authStore'
 
-// Always use relative path — Vite proxy handles forwarding to backend:8000
+// import.meta.env.VITE_API_URL is set at BUILD time by Vite:
+//   - Local: not set, falls back to '/api' (Vite proxy handles it)
+//   - Render: set to 'https://your-backend.onrender.com/api' in static site env vars
+const BASE_URL = import.meta.env.VITE_API_URL || '/api'
+
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: BASE_URL,
   headers: { 'Content-Type': 'application/json' },
   timeout: 15000,
 })
@@ -31,7 +35,7 @@ api.interceptors.response.use(
       original._retry = true
       try {
         const refreshToken = useAuthStore.getState().refreshToken
-        const resp = await axios.post('/api/auth/token/refresh/', {
+        const resp = await axios.post(`${BASE_URL}/auth/token/refresh/`, {
           refresh: refreshToken,
         })
         useAuthStore.getState().setTokens(resp.data.access, refreshToken)
