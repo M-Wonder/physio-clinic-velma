@@ -30,6 +30,9 @@ twilio==8.11.0
 # Render provides this via its native environment
 Pillow==10.2.0
 
+# Render DATABASE_URL parsing
+dj-database-url==2.1.0
+
 # Filtering
 django-filter==23.5
 
