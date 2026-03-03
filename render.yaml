@@ -1,9 +1,22 @@
+databases:
+  - name: physio-clinic-db
+    plan: starter
+    region: oregon
+    databaseName: physio_clinic
+    user: physio_clinic_user
+
+redis:
+  - name: physio-clinic-redis
+    plan: starter
+    region: oregon
+    # maxmemoryPolicy has been removed - not a valid field
+
 services:
   # Django Backend API Service
   - type: web
     name: physio-clinic-backend
     runtime: python
-    repo: https://github.com/yourusername/physio-clinic-velma  # Update this
+    repo: https://github.com/M-Wonder/physio-clinic-velma  # Updated with your username
     plan: starter
     region: oregon
     branch: main
@@ -11,6 +24,8 @@ services:
     buildCommand: |
       pip install --upgrade pip
       pip install -r requirements/production.txt
+      python manage.py collectstatic --noinput
+      python manage.py migrate
     startCommand: ./entrypoint.sh
     envVars:
       - key: PYTHON_VERSION
@@ -67,7 +82,7 @@ services:
   - type: web
     name: physio-clinic-frontend
     runtime: static
-    repo: https://github.com/yourusername/physio-clinic-velma  # Update this
+    repo: https://github.com/M-Wonder/physio-clinic-velma  # Updated with your username
     plan: starter
     region: oregon
     branch: main
@@ -88,7 +103,7 @@ services:
   - type: worker
     name: physio-clinic-celery-worker
     runtime: python
-    repo: https://github.com/yourusername/physio-clinic-velma  # Update this
+    repo: https://github.com/M-Wonder/physio-clinic-velma  # Updated with your username
     plan: starter
     region: oregon
     branch: main
@@ -121,7 +136,7 @@ services:
   - type: worker
     name: physio-clinic-celery-beat
     runtime: python
-    repo: https://github.com/yourusername/physio-clinic-velma  # Update this
+    repo: https://github.com/M-Wonder/physio-clinic-velma  # Updated with your username
     plan: starter
     region: oregon
     branch: main
@@ -149,16 +164,3 @@ services:
           envVarKey: SECRET_KEY
       - key: DEBUG
         value: false
-
-databases:
-  - name: physio-clinic-db
-    plan: starter
-    region: oregon
-    databaseName: physio_clinic
-    user: physio_clinic_user
-
-redis:
-  - name: physio-clinic-redis
-    plan: starter
-    region: oregon
-    maxmemoryPolicy: noeviction
