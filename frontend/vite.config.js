@@ -6,10 +6,14 @@ export default defineConfig({
   server: {
     port: 3030,
     host: '0.0.0.0',
+    allowedHosts: [
+       'somatologic-misrepresentative-sheba.ngrok-free.dev',
+      '.ngrok-free.dev'  // This allows all ngrok-free.dev subdomains
+    ],
     proxy: {
       // All /api requests forwarded to Django backend container
       '/api': {
-        target: 'http://backend:8080',
+        target: env.VITE_API_URL || 'http://backend:8080',
         changeOrigin: true,
         secure: false,
       },
@@ -18,5 +22,9 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: false,
+     rollupOptions: {
+        output: {
+          manualChunks: undefined,
+        },
   },
 })
