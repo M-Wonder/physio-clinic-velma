@@ -1,11 +1,15 @@
+# backend/physio_clinic/apps/accounts/encryption.py
 """
-Field-level encryption for sensitive patient data (HIPAA compliance).
-Uses Fernet (AES-128-CBC + HMAC-SHA256) for symmetric encryption.
+Field-level encryption for sensitive patient data.
+Uses Fernet (AES-128-CBC + HMAC-SHA256). Supports multiple comma-separated
+keys via MultiFernet for zero-downtime key rotation (first key encrypts,
+all keys are tried on decrypt).
 """
 import logging
+from django.core.exceptions import ImproperlyConfigured
 from django.db import models
 from django.conf import settings
-from cryptography.fernet import Fernet, InvalidToken
+from cryptography.fernet import Fernet, MultiFernet, InvalidToken
 
 logger = logging.getLogger('physio_clinic')
 
@@ -13,53 +17,62 @@ _fernet = None
 
 
 def get_fernet():
-    """Lazily initialize Fernet with the configured key."""
     global _fernet
-    if _fernet is None:
-        key = settings.ENCRYPTION_KEY
-        if not key:
-            # Warn in dev; fail in production
-            logger.warning("ENCRYPTION_KEY not set — patient data will NOT be encrypted!")
+    if _fernet is not None:
+        return _fernet
+
+    raw = getattr(settings, 'ENCRYPTION_KEY', '') or ''
+    keys = [k.strip() for k in raw.split(',') if k.strip()]
+
+    if not keys:
+        if settings.DEBUG:
+            logger.warning('ENCRYPTION_KEY not set — patient data will NOT be encrypted (DEBUG only).')
             return None
-        _fernet = Fernet(key.encode() if isinstance(key, str) else key)
+        # Never allow a production/staging boot with encryption silently disabled.
+        raise ImproperlyConfigured(
+            'ENCRYPTION_KEY must be set when DEBUG=False. '
+            'Generate one with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"'
+        )
+
+    _fernet = MultiFernet([Fernet(k.encode()) for k in keys])
     return _fernet
 
 
 def encrypt(value: str) -> str:
-    """Encrypt a plaintext string. Returns empty string if value is empty."""
     if not value:
         return value
     f = get_fernet()
     if f is None:
-        return value  # Dev fallback — no encryption
+        return value
     return f.encrypt(value.encode('utf-8')).decode('utf-8')
 
 
 def decrypt(token: str) -> str:
-    """Decrypt a Fernet token. Returns empty string on failure."""
     if not token:
         return token
     f = get_fernet()
     if f is None:
-        return token  # Dev fallback
+        return token
     try:
         return f.decrypt(token.encode('utf-8')).decode('utf-8')
-    except (InvalidToken, Exception) as e:
-        logger.error("Decryption failed: %s", e)
-        return ''
+    except InvalidToken:
+        # Don't silently return '' — that looks identical to "no data" and
+        # has previously meant a wrong/rotated key quietly destroyed data on
+        # the next save. Surface it instead.
+        logger.error('Decryption failed for a PatientProfile field — wrong or rotated ENCRYPTION_KEY?')
+        raise
 
 
 class EncryptedField(models.TextField):
-    """
-    A Django model field that transparently encrypts/decrypts data.
-    Data is encrypted before saving and decrypted on access.
-    """
     def from_db_value(self, value, expression, connection):
         return decrypt(value) if value else value
 
     def to_python(self, value):
-        return decrypt(value) if value else value
+        # IMPORTANT: do not decrypt here. Django calls to_python() during
+        # full_clean() (e.g. from the admin) on values that are already
+        # plaintext in memory — decrypting them a second time returned ''
+        # and silently blanked patient data on save.
+        return value
 
     def get_prep_value(self, value):
-        """Encrypt before saving to DB."""
         return encrypt(value) if value else value
