@@ -1,11 +1,26 @@
-FROM node:20-alpine
-
+# ---- development: hot-reload via `npm run dev`, used by docker-compose.yml ----
+FROM node:20-alpine AS development
 WORKDIR /app
-
 COPY package*.json ./
 RUN npm install
-
 COPY . .
-
 EXPOSE 3030
-CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "3030"]
+
+# ---- build: compile the static bundle ----
+FROM node:20-alpine AS build
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
+
+# ---- production: static bundle served by nginx, used by docker-compose.prod.yml ----
+FROM nginx:1.27-alpine AS production
+RUN adduser -D -H -u 10001 appuser \
+    && chown -R appuser:appuser /var/cache/nginx /var/run
+COPY --from=build /app/dist /usr/share/nginx/html
+COPY docker/frontend.nginx.conf /etc/nginx/conf.d/default.conf
+USER appuser
+EXPOSE 3030
+CMD ["nginx", "-g", "daemon off;"]

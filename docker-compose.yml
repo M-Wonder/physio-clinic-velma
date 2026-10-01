@@ -87,6 +87,7 @@ services:
     build:
       context: ./frontend
       dockerfile: ../docker/Dockerfile.frontend
+      target: development
     volumes:
       - ./frontend:/app
       - /app/node_modules

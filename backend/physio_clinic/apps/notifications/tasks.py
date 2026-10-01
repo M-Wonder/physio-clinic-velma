@@ -3,7 +3,8 @@ Celery tasks for notifications (email + SMS).
 
 Flow: business event -> send_appointment_<event> -> one NotificationLog row per
 enabled channel (status=pending) -> deliver_notification(log_id) sends it with
-retries. Channels are retried independently.
+retries. Channels are retried independently, so an SMS failure never re-sends
+the email for the same event.
 """
 import logging
 
@@ -25,7 +26,6 @@ class PermanentDeliveryError(Exception):
     """Retrying will not help (provider not configured, etc.)."""
 
 
-# (email subject, email body, sms body)
 TEMPLATES = {
     'confirmation': (
         'Appointment confirmed - {clinic}',
@@ -89,22 +89,20 @@ def _queue_notifications(appointment_id, event):
 
 
 def _send_email(log):
-    send_mail(log.subject, log.body, settings.DEFAULT_FROM_EMAIL,
-              [log.user.email], fail_silently=False)
+    send_mail(log.subject, log.body, settings.DEFAULT_FROM_EMAIL, [log.user.email], fail_silently=False)
 
 
 def _send_sms(log):
-    sid, token, sender = (settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN,
-                          settings.TWILIO_PHONE_NUMBER)
+    sid, token, sender = settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN, settings.TWILIO_PHONE_NUMBER
     if not (sid and token and sender):
         raise PermanentDeliveryError('Twilio is not configured')
-    from twilio.rest import Client  # lazy: only needed when SMS is enabled
+    from twilio.rest import Client  # lazy import: only needed when SMS is enabled
     Client(sid, token).messages.create(body=log.body, from_=sender, to=log.user.phone_number)
 
 
 @shared_task(bind=True, acks_late=True, max_retries=MAX_DELIVERY_RETRIES)
 def deliver_notification(self, log_id):
-    """Send one NotificationLog row. Idempotent: already-sent rows are skipped."""
+    """Send one NotificationLog row. Idempotent: rows already 'sent' are skipped."""
     try:
         log = NotificationLog.objects.select_related('user').get(pk=log_id)
     except NotificationLog.DoesNotExist:
@@ -154,7 +152,8 @@ def send_appointment_cancellation(appointment_id):
 
 @shared_task(**_retry_db)
 def send_appointment_reminder(appointment_id):
-    # Claim atomically so concurrent runs can never send two reminders.
+    # Claim atomically first, so two concurrent beat/worker runs can never
+    # both queue a reminder for the same appointment.
     claimed = Appointment.objects.filter(
         pk=appointment_id, reminder_sent=False,
         status__in=(AppointmentStatus.SCHEDULED, AppointmentStatus.CONFIRMED),

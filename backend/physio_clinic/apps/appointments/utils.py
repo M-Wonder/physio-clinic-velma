@@ -54,14 +54,19 @@ def get_available_slots(doctor, date_str: str) -> List[Dict]:
         cache.set(cache_key, [], CACHE_TTL)
         return []
 
-    # Get already-booked appointments
-    booked_times = set(
+    # Get already-booked appointments as (start, end) ranges — NOT just a
+    # set of start times. Services can have different durations, so a slot
+    # can be genuinely unavailable even if nothing starts exactly then.
+    booked_ranges = list(
         Appointment.objects.filter(
             doctor=doctor,
             appointment_date=target_date,
             status__in=('scheduled', 'confirmed', 'in_progress')
-        ).values_list('start_time', flat=True)
+        ).values_list('start_time', 'end_time')
     )
+
+    def overlaps(slot_start, slot_end):
+        return any(slot_start < b_end and slot_end > b_start for b_start, b_end in booked_ranges)
 
     # Generate slots
     slots = []
@@ -70,14 +75,15 @@ def get_available_slots(doctor, date_str: str) -> List[Dict]:
     delta = timedelta(minutes=SLOT_DURATION)
 
     while current + delta <= end:
-        slot_time = current.time()
+        slot_start = current.time()
+        slot_end = (current + delta).time()
         # Don't show past slots for today
-        if target_date == timezone.now().date() and slot_time <= timezone.now().time():
+        if target_date == timezone.now().date() and slot_start <= timezone.now().time():
             current += delta
             continue
         slots.append({
-            'time': slot_time.strftime('%H:%M'),
-            'available': slot_time not in booked_times,
+            'time': slot_start.strftime('%H:%M'),
+            'available': not overlaps(slot_start, slot_end),
         })
         current += delta
 

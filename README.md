@@ -16,8 +16,6 @@ A full-stack physiotherapy clinic management system built with Django REST Frame
 ```bash
 cp .env.example .env
 docker compose up --build
-# Seed demo data:
-docker compose exec backend python manage.py seed_data
 ```
 
 - Frontend: http://localhost:3030
@@ -25,4 +23,16 @@ docker compose exec backend python manage.py seed_data
 - Docs: http://localhost:8080/api/docs/
 - Admin: http://localhost:8080/admin/
 
-Default admin: admin@physio.clinic / Admin@12345
+## Local admin account
+No admin account exists until you create one. Either:
+- `docker compose exec backend python manage.py createsuperuser`, or
+- set `DJANGO_SUPERUSER_EMAIL` and `DJANGO_SUPERUSER_PASSWORD` in `.env` before first boot
+  (`entrypoint.sh` creates it automatically, and keeps that password in sync on restarts —
+  don't set these in any shared or production `.env`).
+
+## Demo data (local development only)
+```bash
+docker compose exec backend python manage.py seed_data
+```
+Creates demo doctor and patient accounts and prints a one-time password to the terminal.
+Refuses to run unless `DEBUG=True`, so it can never touch a real deployment.

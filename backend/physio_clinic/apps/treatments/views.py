@@ -1,9 +1,12 @@
 """Treatment record views."""
 import logging
+from django.http import Http404, HttpResponse
+from django.shortcuts import get_object_or_404
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.views import APIView
 from rest_framework.parsers import MultiPartParser, FormParser
 
 from physio_clinic.apps.treatments.models import TreatmentRecord, TreatmentFile
@@ -63,3 +66,36 @@ class TreatmentRecordViewSet(viewsets.ModelViewSet):
             return Response(status=204)
         except TreatmentFile.DoesNotExist:
             return Response({'error': 'File not found.'}, status=404)
+
+
+class TreatmentFileDownloadView(APIView):
+    """
+    Streams a treatment file via nginx X-Accel-Redirect after an ownership
+    check. nginx serves /var/www/media/ only under the `internal` location
+    /protected-media/, so this view is the ONLY way to reach a file — there
+    is no public URL for it.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        tfile = get_object_or_404(
+            TreatmentFile.objects.select_related(
+                'treatment_record__patient__user', 'treatment_record__doctor__user'
+            ),
+            pk=pk,
+        )
+        record, user = tfile.treatment_record, request.user
+        allowed = (
+            user.role == 'admin'
+            or record.patient.user_id == user.id
+            or record.doctor.user_id == user.id
+        )
+        if not allowed:
+            # 404, not 403 — don't confirm to an unauthorized user that this
+            # record even exists.
+            raise Http404
+
+        response = HttpResponse(content_type='application/octet-stream')
+        response['X-Accel-Redirect'] = f'/protected-media/{tfile.file.name}'
+        response['Content-Disposition'] = f'attachment; filename="{tfile.original_filename}"'
+        return response

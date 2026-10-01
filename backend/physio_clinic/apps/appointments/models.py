@@ -29,7 +29,10 @@ class AppointmentType(models.TextChoices):
 class Appointment(models.Model):
     """
     Core appointment model.
-    Uses select_for_update() in booking logic to prevent double-booking.
+    Overlap is prevented at the database level by a Postgres EXCLUDE
+    constraint on (doctor, tstzrange(start_at, end_at)) — see migration
+    0002_prevent_overlapping_appointments. start_at/end_at are denormalized
+    timestamps kept in sync with appointment_date/start_time/end_time in save().
     """
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     patient = models.ForeignKey('accounts.PatientProfile', on_delete=models.CASCADE, related_name='appointments')
@@ -39,6 +42,9 @@ class Appointment(models.Model):
     appointment_date = models.DateField(db_index=True)
     start_time = models.TimeField()
     end_time = models.TimeField()
+    # Denormalized datetime range used by the DB-level overlap constraint.
+    start_at = models.DateTimeField(null=True, editable=False)
+    end_at = models.DateTimeField(null=True, editable=False)
     status = models.CharField(max_length=20, choices=AppointmentStatus.choices, default=AppointmentStatus.SCHEDULED)
     appointment_type = models.CharField(max_length=20, choices=AppointmentType.choices, default=AppointmentType.SCHEDULED)
 
@@ -77,6 +83,19 @@ class Appointment(models.Model):
         if self.appointment_date and self.appointment_date < timezone.now().date():
             if self.pk is None:  # Only for new appointments
                 raise ValidationError('Cannot book appointments in the past.')
+
+    def save(self, *args, **kwargs):
+        # Keep the denormalized range in sync so the Postgres EXCLUDE
+        # constraint always sees the true start/end of the appointment.
+        if self.appointment_date and self.start_time:
+            self.start_at = timezone.make_aware(
+                timezone.datetime.combine(self.appointment_date, self.start_time)
+            )
+        if self.appointment_date and self.end_time:
+            self.end_at = timezone.make_aware(
+                timezone.datetime.combine(self.appointment_date, self.end_time)
+            )
+        super().save(*args, **kwargs)
 
     @property
     def is_cancellable(self):

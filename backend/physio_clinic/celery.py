@@ -19,9 +19,4 @@ app.conf.beat_schedule = {
         'task': 'physio_clinic.apps.appointments.tasks.send_appointment_reminders',
         'schedule': 3600.0,  # Every hour
     },
-    # Clean up expired slots cache
-    'cleanup-slot-cache': {
-        'task': 'physio_clinic.apps.appointments.tasks.cleanup_slot_cache',
-        'schedule': 86400.0,  # Daily
-    },
 }

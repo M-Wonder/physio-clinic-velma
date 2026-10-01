@@ -1,9 +1,12 @@
 """
 Appointment Views — booking, cancellation, rescheduling, walk-ins.
-Uses DB-level locking to prevent double-booking.
+Overlap safety is enforced by a Postgres EXCLUDE constraint (see
+appointments/migrations/0002_prevent_overlapping_appointments.py), not by
+application-level locking — the constraint catches true time-range overlaps
+even when two appointments have different start times/durations.
 """
 import logging
-from django.db import transaction
+from django.db import transaction, IntegrityError
 from django.utils import timezone
 from rest_framework import viewsets, status, generics
 from rest_framework.decorators import action
@@ -25,6 +28,11 @@ logger = logging.getLogger('physio_clinic')
 class BookingThrottle(UserRateThrottle):
     """10 booking attempts per minute per user."""
     scope = 'booking'
+
+
+def _queue_confirmation(appointment_id):
+    from physio_clinic.apps.notifications.tasks import send_appointment_confirmation
+    send_appointment_confirmation.delay(str(appointment_id))
 
 
 class AppointmentViewSet(viewsets.ModelViewSet):
@@ -58,14 +66,11 @@ class AppointmentViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['post'], throttle_classes=[BookingThrottle])
     def book(self, request):
         """
-        Book an appointment. Uses select_for_update to prevent race conditions.
-        Steps:
-        1. Validate input (slot availability pre-check)
-        2. Acquire DB lock on the slot
-        3. Re-verify availability under lock
-        4. Create appointment
-        5. Invalidate slot cache
-        6. Queue confirmation notification
+        Book an appointment.
+        Overlap safety comes from the DB EXCLUDE constraint on
+        (doctor, tstzrange(start_at, end_at)) — a successful INSERT means the
+        slot was genuinely free, including against appointments with
+        different durations that a simple start-time match would miss.
         """
         serializer = BookAppointmentSerializer(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
@@ -83,19 +88,6 @@ class AppointmentViewSet(viewsets.ModelViewSet):
 
         try:
             with transaction.atomic():
-                # Pessimistic lock — block concurrent bookings for same slot
-                conflicting = Appointment.objects.select_for_update().filter(
-                    doctor=doctor,
-                    appointment_date=appt_date,
-                    start_time=start_time,
-                    status__in=(AppointmentStatus.SCHEDULED, AppointmentStatus.CONFIRMED)
-                )
-                if conflicting.exists():
-                    return Response(
-                        {'error': 'Sorry, this slot was just booked. Please choose another time.'},
-                        status=status.HTTP_409_CONFLICT
-                    )
-
                 appointment = Appointment.objects.create(
                     patient=patient,
                     doctor=doctor,
@@ -107,20 +99,18 @@ class AppointmentViewSet(viewsets.ModelViewSet):
                     booked_by=request.user,
                     status=AppointmentStatus.SCHEDULED,
                 )
+                # robust=True: a broker outage must never turn a committed
+                # booking into a 500 for the patient.
+                transaction.on_commit(lambda: _queue_confirmation(appointment.id), robust=True)
+        except IntegrityError:
+            return Response(
+                {'error': 'Sorry, this slot overlaps an existing appointment. Please choose another time.'},
+                status=status.HTTP_409_CONFLICT,
+            )
 
-            # Invalidate slot cache (outside transaction is fine)
-            invalidate_slot_cache(doctor.id, appt_date.strftime('%Y-%m-%d'))
-
-            # Queue confirmation notification asynchronously
-            from physio_clinic.apps.notifications.tasks import send_appointment_confirmation
-            send_appointment_confirmation.delay(str(appointment.id))
-
-            logger.info('Appointment booked: %s by %s', appointment.id, request.user.email)
-            return Response(AppointmentSerializer(appointment).data, status=status.HTTP_201_CREATED)
-
-        except Exception as e:
-            logger.exception('Booking error for user %s', request.user.email)
-            return Response({'error': 'Booking failed. Please try again.'}, status=500)
+        invalidate_slot_cache(doctor.id, appt_date.strftime('%Y-%m-%d'))
+        logger.info('Appointment booked: %s by %s', appointment.id, request.user.email)
+        return Response(AppointmentSerializer(appointment).data, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=['post'])
     def cancel(self, request, pk=None):
@@ -128,8 +118,10 @@ class AppointmentViewSet(viewsets.ModelViewSet):
         appointment = self.get_object()
 
         if not appointment.is_cancellable:
+            from django.conf import settings
+            notice_hours = getattr(settings, 'CANCELLATION_NOTICE_HOURS', 24)
             return Response(
-                {'error': f'Appointments must be cancelled at least {getattr(__import__("django.conf", fromlist=["settings"]).settings, "CANCELLATION_NOTICE_HOURS", 24)} hours in advance.'},
+                {'error': f'Appointments must be cancelled at least {notice_hours} hours in advance.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -171,30 +163,36 @@ class AppointmentViewSet(viewsets.ModelViewSet):
         duration = old_appointment.duration_minutes
         end_dt = datetime.combine(data['new_date'], data['new_time']) + timedelta(minutes=duration)
 
-        with transaction.atomic():
-            # Mark old appointment as rescheduled
-            old_appointment.status = AppointmentStatus.RESCHEDULED
-            old_appointment.save()
+        try:
+            with transaction.atomic():
+                # Mark old appointment as rescheduled
+                old_appointment.status = AppointmentStatus.RESCHEDULED
+                old_appointment.save()
 
-            # Create new appointment
-            new_appointment = Appointment.objects.create(
-                patient=old_appointment.patient,
-                doctor=old_appointment.doctor,
-                service=old_appointment.service,
-                appointment_date=data['new_date'],
-                start_time=data['new_time'],
-                end_time=end_dt.time(),
-                reason_for_visit=old_appointment.reason_for_visit,
-                booked_by=request.user,
-                rescheduled_from=old_appointment,
-                status=AppointmentStatus.SCHEDULED,
+                # Create new appointment — the EXCLUDE constraint guards this
+                # insert exactly as it guards book(), so a race against another
+                # reschedule/booking for the same doctor/time still 409s cleanly.
+                new_appointment = Appointment.objects.create(
+                    patient=old_appointment.patient,
+                    doctor=old_appointment.doctor,
+                    service=old_appointment.service,
+                    appointment_date=data['new_date'],
+                    start_time=data['new_time'],
+                    end_time=end_dt.time(),
+                    reason_for_visit=old_appointment.reason_for_visit,
+                    booked_by=request.user,
+                    rescheduled_from=old_appointment,
+                    status=AppointmentStatus.SCHEDULED,
+                )
+                transaction.on_commit(lambda: _queue_confirmation(new_appointment.id), robust=True)
+        except IntegrityError:
+            return Response(
+                {'error': 'Sorry, this slot overlaps an existing appointment. Please choose another time.'},
+                status=status.HTTP_409_CONFLICT,
             )
 
         invalidate_slot_cache(old_appointment.doctor.id, date_str)
         invalidate_slot_cache(old_appointment.doctor.id, old_appointment.appointment_date.strftime('%Y-%m-%d'))
-
-        from physio_clinic.apps.notifications.tasks import send_appointment_confirmation
-        send_appointment_confirmation.delay(str(new_appointment.id))
 
         return Response(AppointmentSerializer(new_appointment).data, status=201)
 

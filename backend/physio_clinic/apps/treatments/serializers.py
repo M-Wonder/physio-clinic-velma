@@ -1,3 +1,4 @@
+from django.urls import reverse
 from rest_framework import serializers
 from physio_clinic.apps.treatments.models import TreatmentRecord, TreatmentFile
 
@@ -12,9 +13,12 @@ class TreatmentFileSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'uploaded_at', 'file_size_bytes', 'original_filename']
 
     def get_file_url(self, obj):
+        # Points at the authenticated download view, not the raw media path —
+        # nginx no longer serves /media/ publicly, so obj.file.url alone
+        # would 404 for every caller.
         request = self.context.get('request')
         if obj.file and request:
-            return request.build_absolute_uri(obj.file.url)
+            return request.build_absolute_uri(reverse('treatment-file-download', args=[obj.pk]))
         return None
 
 

@@ -12,7 +12,6 @@ services:
   frontend:
     build:
       target: production
-    command: nginx -g 'daemon off;'
     restart: always
 
   celery_worker:
