@@ -1,12 +1,15 @@
 """
 Accounts Serializers — Registration, Login, Profiles
 """
+import secrets
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
+from django.db import transaction
 from django.utils import timezone
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from physio_clinic.apps.accounts.models import DoctorProfile, PatientProfile, DoctorSchedule, UserRole
+from physio_clinic.apps.services.models import Service
 
 User = get_user_model()
 
@@ -82,7 +85,7 @@ class DoctorScheduleSerializer(serializers.ModelSerializer):
 
 
 class DoctorProfileSerializer(serializers.ModelSerializer):
-    """Doctor profile with schedule and specialties."""
+    """Doctor profile with schedule and specialties. Public, read-only."""
     user = UserSerializer(read_only=True)
     schedules = DoctorScheduleSerializer(many=True, read_only=True)
     specialty_names = serializers.SerializerMethodField()
@@ -122,3 +125,72 @@ class PatientProfileSerializer(serializers.ModelSerializer):
         if obj.primary_doctor:
             return f"Dr. {obj.primary_doctor.user.get_full_name()}"
         return None
+
+
+# ── Admin (write-capable) doctor-management serializers — used only by
+# AdminDoctorViewSet in views.py, which is gated to IsAdmin. ──
+
+class AdminDoctorSerializer(serializers.ModelSerializer):
+    """List/retrieve/update an existing doctor's profile fields and specialties."""
+    user = UserSerializer(read_only=True)
+    schedules = DoctorScheduleSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = DoctorProfile
+        fields = ['id', 'user', 'specialties', 'license_number', 'qualifications', 'bio',
+                  'years_experience', 'consultation_fee', 'avatar', 'is_accepting_patients',
+                  'schedules']
+        read_only_fields = ['id']
+
+
+class AdminDoctorCreateSerializer(serializers.Serializer):
+    """
+    Creates a doctor's User account and DoctorProfile together in one call,
+    since a DoctorProfile can't exist without a User and the admin panel
+    shouldn't have to make two separate requests for that.
+    """
+    email = serializers.EmailField()
+    first_name = serializers.CharField(max_length=150)
+    last_name = serializers.CharField(max_length=150)
+    phone_number = serializers.CharField(max_length=20, required=False, allow_blank=True)
+    # Optional: if omitted, a random one-time password is generated and
+    # returned in the response so the admin can hand it to the doctor —
+    # it is never emailed or logged.
+    password = serializers.CharField(write_only=True, required=False, validators=[validate_password])
+
+    license_number = serializers.CharField(max_length=100)
+    qualifications = serializers.CharField(required=False, allow_blank=True)
+    bio = serializers.CharField(required=False, allow_blank=True)
+    years_experience = serializers.IntegerField(required=False, default=0)
+    consultation_fee = serializers.DecimalField(max_digits=8, decimal_places=2, required=False, default=0)
+    is_accepting_patients = serializers.BooleanField(required=False, default=True)
+    specialties = serializers.PrimaryKeyRelatedField(many=True, required=False, queryset=Service.objects.all())
+
+    def validate_email(self, value):
+        if User.objects.filter(email__iexact=value).exists():
+            raise serializers.ValidationError('A user with this email already exists.')
+        return value
+
+    @transaction.atomic
+    def create(self, validated_data):
+        specialties = validated_data.pop('specialties', [])
+        generated_password = None
+        password = validated_data.pop('password', None)
+        if not password:
+            password = generated_password = secrets.token_urlsafe(12)
+
+        user = User.objects.create_user(
+            email=validated_data.pop('email'),
+            password=password,
+            first_name=validated_data.pop('first_name'),
+            last_name=validated_data.pop('last_name'),
+            phone_number=validated_data.pop('phone_number', ''),
+            role=UserRole.DOCTOR,
+            is_active=True,
+        )
+        profile = DoctorProfile.objects.create(user=user, **validated_data)
+        if specialties:
+            profile.specialties.set(specialties)
+
+        profile._generated_password = generated_password  # surfaced once in the view's response
+        return profile

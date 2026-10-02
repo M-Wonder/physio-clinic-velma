@@ -11,10 +11,11 @@ from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from physio_clinic.apps.accounts.models import DoctorProfile, PatientProfile, UserRole
+from physio_clinic.apps.accounts.models import DoctorProfile, PatientProfile, DoctorSchedule, UserRole
 from physio_clinic.apps.accounts.serializers import (
     RegisterSerializer, CustomTokenObtainPairSerializer,
-    UserSerializer, DoctorProfileSerializer, PatientProfileSerializer
+    UserSerializer, DoctorProfileSerializer, PatientProfileSerializer,
+    AdminDoctorSerializer, AdminDoctorCreateSerializer, DoctorScheduleSerializer,
 )
 from physio_clinic.apps.accounts.permissions import IsAdmin, IsOwnerOrDoctorOrAdmin
 
@@ -77,7 +78,7 @@ class MeView(generics.RetrieveUpdateAPIView):
 
 
 class DoctorViewSet(viewsets.ReadOnlyModelViewSet):
-    """List and retrieve doctor profiles."""
+    """List and retrieve doctor profiles. Public."""
     queryset = DoctorProfile.objects.filter(
         user__is_active=True
     ).select_related('user').prefetch_related('specialties', 'schedules')
@@ -154,3 +155,64 @@ class PatientViewSet(viewsets.ModelViewSet):
             }
         }
         return Response(export)
+
+
+# ── Admin — doctor account + schedule management. Mounted at
+# /api/auth/admin/doctors/. Every action below requires the admin role. ──
+
+class AdminDoctorViewSet(viewsets.ModelViewSet):
+    """
+    Create, list, update and deactivate doctors, and manage each doctor's
+    weekly schedule. Unlike the public DoctorViewSet above, this sees every
+    doctor regardless of is_active/is_accepting_patients, and can write.
+    """
+    queryset = DoctorProfile.objects.select_related('user').prefetch_related('specialties', 'schedules')
+    permission_classes = [IsAuthenticated, IsAdmin]
+    search_fields = ['user__first_name', 'user__last_name', 'license_number']
+
+    def get_serializer_class(self):
+        return AdminDoctorCreateSerializer if self.action == 'create' else AdminDoctorSerializer
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        profile = serializer.save()
+        logger.info('Doctor account created: %s by admin %s', profile.user.email, request.user.email)
+        response_data = AdminDoctorSerializer(profile, context={'request': request}).data
+        if getattr(profile, '_generated_password', None):
+            # Shown exactly once — not stored or logged anywhere else.
+            response_data['generated_password'] = profile._generated_password
+        return Response(response_data, status=status.HTTP_201_CREATED)
+
+    def perform_destroy(self, instance):
+        # Deactivate rather than hard-delete: past appointments and treatment
+        # records reference this doctor and must not be orphaned/cascaded away.
+        instance.user.is_active = False
+        instance.user.save(update_fields=['is_active'])
+        instance.is_accepting_patients = False
+        instance.save(update_fields=['is_accepting_patients'])
+        logger.info('Doctor account deactivated: %s', instance.user.email)
+
+    @action(detail=True, methods=['post'], url_path='schedules')
+    def add_schedule(self, request, pk=None):
+        """Add one weekly schedule slot, e.g. {day_of_week: 0, start_time: '09:00', end_time: '17:00'}."""
+        doctor = self.get_object()
+        serializer = DoctorScheduleSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(doctor=doctor)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    @add_schedule.mapping.delete
+    def clear_schedules(self, request, pk=None):
+        """DELETE with no body removes all of this doctor's schedule rows."""
+        doctor = self.get_object()
+        doctor.schedules.all().delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=True, methods=['delete'], url_path=r'schedules/(?P<schedule_id>\d+)')
+    def remove_schedule(self, request, pk=None, schedule_id=None):
+        doctor = self.get_object()
+        deleted, _ = doctor.schedules.filter(id=schedule_id).delete()
+        if not deleted:
+            return Response({'error': 'Schedule entry not found.'}, status=404)
+        return Response(status=status.HTTP_204_NO_CONTENT)
