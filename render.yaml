@@ -79,7 +79,7 @@ services:
     staticPublishPath: dist
     envVars:
       - key: VITE_API_URL
-        value: https://physio-clinic-backend.onrender.com/api
+        value: https://physio-clinic-backend-be8j.onrender.com/api
       - key: VITE_APP_NAME
         value: PhysioClinic
     routes:
