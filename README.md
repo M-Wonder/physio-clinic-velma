@@ -1,16 +1,19 @@
-# PhysioClinic Management System
+# Neuromotion Physiotherapy Clinic — Booking & Records
 
-A full-stack physiotherapy clinic management system built with Django REST Framework + React, containerized with Docker.
+Online booking and patient records for Neuromotion Physiotherapy Clinic, Nairobi. Django REST Framework + React, containerised with Docker.
+
+*Move Better. Feel Better.*
 
 ## Features
-- Service Catalog (7 physiotherapy specialties)
-- Doctor Profiles with real-time availability
+- Service catalogue: Musculoskeletal, Neurological, Women's Health, Rehabilitation & Recovery, Hands-On & Soft Tissue, Home Physiotherapy
+- Clinic sessions and home visits, with rates in KES (set in `.env`)
+- Therapist profiles with real-time availability
 - Appointment Booking (concurrency-safe)
 - Notifications via Celery (Email/SMS)
 - Treatment Records with file attachments
 - Role-Based Access Control (Patient/Doctor/Admin/Receptionist)
 - Walk-in Patient Support
-- HIPAA/GDPR Compliance
+- Patient health fields encrypted at rest; role-based access
 
 ## Quick Start
 ```bash
@@ -22,6 +25,11 @@ docker compose up --build
 - API: http://localhost:8080/api/
 - Docs: http://localhost:8080/api/docs/
 - Admin: http://localhost:8080/admin/
+
+## Clinic details
+Name, phone, WhatsApp, email, address and rates come from environment variables (`CLINIC_*`, see `.env.example`) and are served at `/api/clinic/`, so the website and emails always agree. Blank values are hidden. **Set the real phone/WhatsApp/address before launch.**
+
+The six services load automatically on `migrate`; edit them any time in Django admin.
 
 ## Local admin account
 No admin account exists until you create one. Either:

@@ -2,7 +2,7 @@
 from django.conf import settings
 from django.utils import timezone
 from rest_framework import serializers
-from physio_clinic.apps.appointments.models import Appointment, AppointmentStatus, WalkInPatient, TimeOffBlock
+from physio_clinic.apps.appointments.models import Appointment, AppointmentStatus, WalkInPatient, TimeOffBlock, VisitType
 from physio_clinic.apps.appointments.utils import get_available_slots
 
 
@@ -19,13 +19,14 @@ class AppointmentSerializer(serializers.ModelSerializer):
             'id', 'patient_name', 'doctor_name', 'service_name',
             'appointment_date', 'start_time', 'end_time',
             'status', 'appointment_type', 'reason_for_visit',
+            'visit_type', 'home_address', 'fee_amount',
             'doctor_notes', 'is_cancellable', 'duration_minutes',
             'reminder_sent', 'created_at',
         ]
         read_only_fields = ['id', 'status', 'doctor_notes', 'reminder_sent']
 
     def get_doctor_name(self, obj):
-        return f"Dr. {obj.doctor.user.get_full_name()}"
+        return obj.doctor.user.get_full_name()
 
 
 class BookAppointmentSerializer(serializers.Serializer):
@@ -35,6 +36,8 @@ class BookAppointmentSerializer(serializers.Serializer):
     appointment_date = serializers.DateField()
     start_time = serializers.TimeField(format='%H:%M', input_formats=['%H:%M'])
     reason_for_visit = serializers.CharField(required=False, allow_blank=True, max_length=500)
+    visit_type = serializers.ChoiceField(choices=VisitType.choices, required=False, default=VisitType.CLINIC)
+    home_address = serializers.CharField(required=False, allow_blank=True, max_length=300)
 
     def validate_appointment_date(self, value):
         if value < timezone.now().date():
@@ -48,6 +51,14 @@ class BookAppointmentSerializer(serializers.Serializer):
         from physio_clinic.apps.accounts.models import DoctorProfile
         from physio_clinic.apps.services.models import Service
         from datetime import timedelta
+
+        # Home visits need an address; clinic visits never store one.
+        if attrs.get('visit_type') == VisitType.HOME:
+            attrs['home_address'] = (attrs.get('home_address') or '').strip()
+            if not attrs['home_address']:
+                raise serializers.ValidationError('Please enter the address for the home visit.')
+        else:
+            attrs['home_address'] = ''
 
         # Validate doctor exists
         try:

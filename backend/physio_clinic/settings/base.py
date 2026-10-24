@@ -1,5 +1,5 @@
 """
-PhysioClinic Django Settings
+Neuromotion Physiotherapy Clinic — Django Settings
 Works for both local Docker and Render cloud deployment.
 """
 from pathlib import Path
@@ -113,7 +113,7 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 LANGUAGE_CODE = 'en-us'
-TIME_ZONE = 'UTC'
+TIME_ZONE = env('TIME_ZONE', default='Africa/Nairobi')  # clinic-local wall-clock time
 USE_I18N = True
 USE_TZ = True
 
@@ -182,7 +182,7 @@ EMAIL_PORT = env.int('EMAIL_PORT', default=587)
 EMAIL_USE_TLS = env.bool('EMAIL_USE_TLS', default=True)
 EMAIL_HOST_USER = env('EMAIL_HOST_USER', default='')
 EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD', default='')
-DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL', default='PhysioClinic <noreply@physio.clinic>')
+DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL', default='Neuromotion Physiotherapy Clinic <neuromotionphysio@gmail.com>')
 
 TWILIO_ACCOUNT_SID = env('TWILIO_ACCOUNT_SID', default='')
 TWILIO_AUTH_TOKEN = env('TWILIO_AUTH_TOKEN', default='')
@@ -190,13 +190,27 @@ TWILIO_PHONE_NUMBER = env('TWILIO_PHONE_NUMBER', default='')
 ENCRYPTION_KEY = env('ENCRYPTION_KEY', default='')
 
 SPECTACULAR_SETTINGS = {
-    'TITLE': 'PhysioClinic API',
-    'DESCRIPTION': 'REST API for PhysioClinic Management System',
+    'TITLE': 'Neuromotion Physiotherapy Clinic API',
+    'DESCRIPTION': 'REST API for the Neuromotion clinic booking and records system',
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
 }
 
-CLINIC_NAME = env('CLINIC_NAME', default='PhysioClinic')
+# ── Clinic identity ─────────────────────────────────────────────
+# Single source of truth: used in emails/SMS and served to the frontend at
+# GET /api/clinic/ so contact details and rates are never hardcoded in React.
+# Phone/WhatsApp/address default to blank (the site hides blank fields) so a
+# placeholder number is never shown to real patients — set them in the env.
+CLINIC_NAME = env('CLINIC_NAME', default='Neuromotion Physiotherapy Clinic')
+CLINIC_TAGLINE = env('CLINIC_TAGLINE', default='Move Better. Feel Better.')
+CLINIC_PHONE = env('CLINIC_PHONE', default='')
+CLINIC_WHATSAPP = env('CLINIC_WHATSAPP', default='')
+CLINIC_EMAIL = env('CLINIC_EMAIL', default='neuromotionphysio@gmail.com')
+CLINIC_ADDRESS = env('CLINIC_ADDRESS', default='Nairobi, Kenya')
+CLINIC_SOCIAL_HANDLE = env('CLINIC_SOCIAL_HANDLE', default='neuromotionphysio')
+CLINIC_CURRENCY = 'KES'
+CLINIC_SESSION_FEE = env.int('CLINIC_SESSION_FEE', default=4500)       # per session, at the clinic
+CLINIC_HOME_VISIT_FEE = env.int('CLINIC_HOME_VISIT_FEE', default=5500)  # per session, at the patient's home
 APPOINTMENT_DURATION_MINUTES = env.int('APPOINTMENT_DURATION_MINUTES', default=60)
 BOOKING_ADVANCE_DAYS = env.int('BOOKING_ADVANCE_DAYS', default=30)
 CANCELLATION_NOTICE_HOURS = env.int('CANCELLATION_NOTICE_HOURS', default=24)

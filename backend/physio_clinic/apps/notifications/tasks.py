@@ -29,20 +29,20 @@ class PermanentDeliveryError(Exception):
 TEMPLATES = {
     'confirmation': (
         'Appointment confirmed - {clinic}',
-        'Hello {patient},\n\nYour {service} appointment with {doctor} is booked for '
-        '{date} at {time}.\n\nIf you need to change it, please do so at least '
+        'Hello {patient},\n\nYour {service} appointment with {therapist} is booked for '
+        '{date} at {time} ({where}).\n\nIf you need to change it, please do so at least '
         '{notice_hours} hours beforehand.\n\n{clinic}\n{phone}',
-        '{clinic}: appointment confirmed with {doctor} on {date} at {time}.',
+        '{clinic}: appointment confirmed with {therapist} on {date} at {time} ({where}).',
     ),
     'reminder': (
         'Reminder: appointment on {date} - {clinic}',
         'Hello {patient},\n\nThis is a reminder of your {service} appointment with '
-        '{doctor} on {date} at {time}.\n\n{clinic}\n{phone}',
-        '{clinic} reminder: appointment with {doctor} on {date} at {time}.',
+        '{therapist} on {date} at {time} ({where}).\n\n{clinic}\n{phone}',
+        '{clinic} reminder: appointment with {therapist} on {date} at {time} ({where}).',
     ),
     'cancellation': (
         'Appointment cancelled - {clinic}',
-        'Hello {patient},\n\nYour appointment with {doctor} on {date} at {time} has '
+        'Hello {patient},\n\nYour appointment with {therapist} on {date} at {time} has '
         'been cancelled. Please contact us or book online for a new time.\n\n{clinic}\n{phone}',
         '{clinic}: your appointment on {date} at {time} was cancelled.',
     ),
@@ -51,11 +51,13 @@ TEMPLATES = {
 
 def _context(appt):
     return {
-        'clinic': getattr(settings, 'CLINIC_NAME', 'PhysioClinic'),
+        'clinic': getattr(settings, 'CLINIC_NAME', 'Neuromotion Physiotherapy Clinic'),
         'phone': getattr(settings, 'CLINIC_PHONE', ''),
         'notice_hours': getattr(settings, 'CANCELLATION_NOTICE_HOURS', 24),
         'patient': appt.patient.user.first_name,
-        'doctor': f'Dr. {appt.doctor.user.get_full_name()}',
+        'therapist': appt.doctor.user.get_full_name(),
+        'where': (f'home visit at {appt.home_address}' if appt.visit_type == 'home'
+                  else f'at the clinic, {settings.CLINIC_ADDRESS}' if getattr(settings, 'CLINIC_ADDRESS', '') else 'at the clinic'),
         'service': appt.service.name if appt.service else 'physiotherapy',
         'date': appt.appointment_date.strftime('%A %d %B %Y'),
         'time': appt.start_time.strftime('%H:%M'),

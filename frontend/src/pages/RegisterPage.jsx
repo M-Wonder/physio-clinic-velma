@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Activity } from 'lucide-react'
 import { authAPI } from '../api/endpoints'
 import { useAuthStore } from '../store/authStore'
 
@@ -61,14 +60,18 @@ export default function RegisterPage() {
   })
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-teal-50 flex items-center justify-center p-4 py-12">
+    <div className="min-h-screen bg-gradient-to-br from-brand-50 to-brand-50 flex items-center justify-center p-4 py-12">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <Link to="/" className="inline-flex items-center gap-2 text-emerald-600 font-bold text-2xl">
-            <Activity className="w-7 h-7" />PhysioClinic
+          <Link to="/" className="inline-flex flex-col items-center gap-2">
+            <img src="/logo-mark.png" alt="" className="h-16 w-16" />
+            <span className="leading-tight text-center">
+              <span className="block text-2xl font-extrabold tracking-wide text-brand-800">NEUROMOTION</span>
+              <span className="block text-[10px] tracking-[0.25em] text-gray-500">PHYSIOTHERAPY CLINIC</span>
+            </span>
           </Link>
           <h1 className="text-2xl font-bold mt-4">Create your account</h1>
-          <p className="text-gray-500 mt-1">Join thousands of patients improving their health</p>
+          <p className="text-gray-500 mt-1">Create an account to book and manage your physiotherapy appointments</p>
         </div>
 
         <div className="card shadow-md">
@@ -119,13 +122,13 @@ export default function RegisterPage() {
               <input
                 type="checkbox"
                 id="gdpr"
-                className="mt-1 h-4 w-4 text-emerald-600 rounded border-gray-300"
+                className="mt-1 h-4 w-4 text-brand-600 rounded border-gray-300"
                 checked={form.gdpr_consent}
                 onChange={e => setForm({ ...form, gdpr_consent: e.target.checked })}
               />
               <label htmlFor="gdpr" className="text-sm text-gray-600">
                 I agree to the{' '}
-                <a href="#" className="text-emerald-600 underline">Privacy Policy</a>
+                <a href="#" className="text-brand-600 underline">Privacy Policy</a>
                 {' '}and consent to data processing.
               </label>
             </div>
@@ -138,7 +141,7 @@ export default function RegisterPage() {
 
           <p className="text-center text-sm text-gray-500 mt-4">
             Already have an account?{' '}
-            <Link to="/login" className="text-emerald-600 font-medium">Sign in</Link>
+            <Link to="/login" className="text-brand-600 font-medium">Sign in</Link>
           </p>
         </div>
       </div>

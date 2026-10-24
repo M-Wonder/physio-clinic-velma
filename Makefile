@@ -1,4 +1,4 @@
-# PhysioClinic — convenience shortcuts
+# Neuromotion Physiotherapy Clinic — convenience shortcuts
 .PHONY: up down build logs shell test seed migrate
 
 up:

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Activity, Eye, EyeOff } from 'lucide-react'
+import { Eye, EyeOff } from 'lucide-react'
 import { authAPI } from '../api/endpoints'
 import { useAuthStore } from '../store/authStore'
 
@@ -37,12 +37,15 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-teal-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-brand-50 to-brand-50 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <Link to="/" className="inline-flex items-center gap-2 text-emerald-600 font-bold text-2xl">
-            <Activity className="w-7 h-7" />
-            PhysioClinic
+          <Link to="/" className="inline-flex flex-col items-center gap-2">
+            <img src="/logo-mark.png" alt="" className="h-16 w-16" />
+            <span className="leading-tight text-center">
+              <span className="block text-2xl font-extrabold tracking-wide text-brand-800">NEUROMOTION</span>
+              <span className="block text-[10px] tracking-[0.25em] text-gray-500">PHYSIOTHERAPY CLINIC</span>
+            </span>
           </Link>
           <h1 className="text-2xl font-bold mt-4 text-gray-900">Welcome back</h1>
           <p className="text-gray-500 mt-1">Sign in to your account</p>
@@ -88,13 +91,8 @@ export default function LoginPage() {
           </form>
           <p className="text-center text-sm text-gray-500 mt-4">
             Don't have an account?{' '}
-            <Link to="/register" className="text-emerald-600 font-medium">Register</Link>
+            <Link to="/register" className="text-brand-600 font-medium">Register</Link>
           </p>
-          <div className="mt-4 pt-4 border-t border-gray-100 space-y-1">
-            <p className="text-xs text-gray-400 text-center font-medium">Demo credentials:</p>
-            <p className="text-xs text-gray-400 text-center">patient@example.com / Patient@12345</p>
-            <p className="text-xs text-gray-400 text-center">dr.sarah.mitchell@physio.clinic / Doctor@12345</p>
-          </div>
         </div>
       </div>
     </div>

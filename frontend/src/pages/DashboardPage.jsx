@@ -36,10 +36,10 @@ export default function DashboardPage() {
       {/* Quick Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
         {[
-          { icon: Calendar, label: 'Upcoming', value: appointments.length, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+          { icon: Calendar, label: 'Upcoming', value: appointments.length, color: 'text-brand-600', bg: 'bg-brand-50' },
           { icon: FileText, label: 'Records', value: '—', color: 'text-blue-600', bg: 'bg-blue-50' },
           { icon: Clock, label: 'Next Visit', value: appointments[0]?.appointment_date ? format(new Date(appointments[0].appointment_date), 'MMM d') : '—', color: 'text-purple-600', bg: 'bg-purple-50' },
-          { icon: User, label: 'My Doctor', value: appointments[0]?.doctor_name?.replace('Dr. ', '') || '—', color: 'text-orange-600', bg: 'bg-orange-50' },
+          { icon: User, label: 'My Therapist', value: appointments[0]?.doctor_name?.replace('Dr. ', '') || '—', color: 'text-orange-600', bg: 'bg-orange-50' },
         ].map(({ icon: Icon, label, value, color, bg }) => (
           <div key={label} className="card flex items-center gap-3">
             <div className={`w-10 h-10 rounded-xl ${bg} flex items-center justify-center`}>
@@ -57,7 +57,7 @@ export default function DashboardPage() {
       <div className="card">
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-semibold text-gray-900">Upcoming Appointments</h2>
-          <Link to="/appointments" className="text-sm text-emerald-600 flex items-center gap-1 hover:underline">
+          <Link to="/appointments" className="text-sm text-brand-600 flex items-center gap-1 hover:underline">
             View all <ArrowRight className="w-3 h-3" />
           </Link>
         </div>

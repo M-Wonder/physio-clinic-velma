@@ -39,7 +39,7 @@ class TreatmentRecordSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at', 'updated_at']
 
     def get_doctor_name(self, obj):
-        return f"Dr. {obj.doctor.user.get_full_name()}"
+        return obj.doctor.user.get_full_name()
 
 
 class TreatmentFileUploadSerializer(serializers.ModelSerializer):
