@@ -4,6 +4,7 @@ import { appointmentsAPI } from '../api/endpoints'
 import { format } from 'date-fns'
 import { Calendar, Clock, X, RefreshCw } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { formatKES } from '../lib/format'
 
 const statusColors = {
   scheduled: 'badge-blue', confirmed: 'badge-green',
@@ -42,7 +43,7 @@ export default function AppointmentsPage() {
         {['upcoming', 'past', 'all'].map(f => (
           <button key={f} onClick={() => setFilter(f)}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors capitalize
-              ${filter === f ? 'bg-emerald-600 text-white' : 'bg-white text-gray-600 border border-gray-200 hover:border-emerald-300'}`}>
+              ${filter === f ? 'bg-brand-600 text-white' : 'bg-white text-gray-600 border border-gray-200 hover:border-brand-300'}`}>
             {f}
           </button>
         ))}
@@ -64,12 +65,16 @@ export default function AppointmentsPage() {
             <div key={appt.id} className="card hover:shadow-md transition-all">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center text-xl shrink-0">
+                  <div className="w-12 h-12 bg-brand-100 rounded-xl flex items-center justify-center text-xl shrink-0">
                     🏥
                   </div>
                   <div>
                     <div className="font-medium text-gray-900">{appt.doctor_name}</div>
                     <div className="text-sm text-gray-500">{appt.service_name}</div>
+                    <div className="text-xs text-gray-400">
+                      {appt.visit_type === 'home' ? '🏠 Home visit' : '🏥 At the clinic'}
+                      {Number(appt.fee_amount) > 0 && ` · ${formatKES(appt.fee_amount)}`}
+                    </div>
                     <div className="flex items-center gap-3 mt-1 text-xs text-gray-400">
                       <span className="flex items-center gap-1">
                         <Calendar className="w-3 h-3" />

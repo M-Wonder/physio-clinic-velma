@@ -19,7 +19,7 @@ from physio_clinic.apps.appointments.serializers import (
     AppointmentSerializer, BookAppointmentSerializer,
     RescheduleSerializer, CancelAppointmentSerializer, WalkInSerializer
 )
-from physio_clinic.apps.appointments.utils import get_available_slots, invalidate_slot_cache
+from physio_clinic.apps.appointments.utils import get_available_slots, invalidate_slot_cache, get_session_fee
 from physio_clinic.apps.accounts.permissions import IsDoctorOrAdmin, IsReceptionist
 
 logger = logging.getLogger('physio_clinic')
@@ -96,6 +96,9 @@ class AppointmentViewSet(viewsets.ModelViewSet):
                     start_time=start_time,
                     end_time=end_time,
                     reason_for_visit=data.get('reason_for_visit', ''),
+                    visit_type=data['visit_type'],
+                    home_address=data['home_address'],
+                    fee_amount=get_session_fee(data['visit_type']),
                     booked_by=request.user,
                     status=AppointmentStatus.SCHEDULED,
                 )
@@ -180,6 +183,9 @@ class AppointmentViewSet(viewsets.ModelViewSet):
                     start_time=data['new_time'],
                     end_time=end_dt.time(),
                     reason_for_visit=old_appointment.reason_for_visit,
+                    visit_type=old_appointment.visit_type,
+                    home_address=old_appointment.home_address,
+                    fee_amount=old_appointment.fee_amount,
                     booked_by=request.user,
                     rescheduled_from=old_appointment,
                     status=AppointmentStatus.SCHEDULED,

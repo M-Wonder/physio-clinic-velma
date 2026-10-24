@@ -34,7 +34,7 @@ export default function ProfilePage() {
       {/* Personal Info */}
       <div className="card">
         <div className="flex items-center gap-2 mb-4">
-          <User className="w-5 h-5 text-emerald-600" />
+          <User className="w-5 h-5 text-brand-600" />
           <h2 className="font-semibold">Personal Information</h2>
         </div>
         <div className="grid sm:grid-cols-2 gap-4 text-sm">
@@ -43,14 +43,14 @@ export default function ProfilePage() {
           <div><span className="text-gray-500">Role:</span> <span className="font-medium ml-2 capitalize">{user?.role}</span></div>
           {profile.age && <div><span className="text-gray-500">Age:</span> <span className="font-medium ml-2">{profile.age} years</span></div>}
           {profile.blood_type && <div><span className="text-gray-500">Blood Type:</span> <span className="font-medium ml-2">{profile.blood_type}</span></div>}
-          {profile.primary_doctor_name && <div><span className="text-gray-500">Primary Doctor:</span> <span className="font-medium ml-2">{profile.primary_doctor_name}</span></div>}
+          {profile.primary_doctor_name && <div><span className="text-gray-500">Primary Therapist:</span> <span className="font-medium ml-2">{profile.primary_doctor_name}</span></div>}
         </div>
       </div>
 
       {/* Notifications */}
       <div className="card">
         <div className="flex items-center gap-2 mb-4">
-          <Bell className="w-5 h-5 text-emerald-600" />
+          <Bell className="w-5 h-5 text-brand-600" />
           <h2 className="font-semibold">Notification Preferences</h2>
         </div>
         <div className="space-y-3">
@@ -74,14 +74,14 @@ export default function ProfilePage() {
               onChange={e => updatePrefsMutation.mutate({ sms_notifications: e.target.checked })}
             />
           </label>
-          {saved && <p className="text-xs text-emerald-600">Preferences saved ✓</p>}
+          {saved && <p className="text-xs text-brand-600">Preferences saved ✓</p>}
         </div>
       </div>
 
       {/* GDPR */}
       <div className="card">
         <div className="flex items-center gap-2 mb-4">
-          <Shield className="w-5 h-5 text-emerald-600" />
+          <Shield className="w-5 h-5 text-brand-600" />
           <h2 className="font-semibold">Privacy & Data</h2>
         </div>
         <div className="space-y-3">

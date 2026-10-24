@@ -7,16 +7,17 @@ export default {
         sans: ['Inter', 'system-ui', 'sans-serif'],
       },
       colors: {
-        // Primary emerald brand palette
-        brand: {
-          50:  '#ecfdf5',
-          100: '#d1fae5',
-          200: '#a7f3d0',
-          500: '#10b981',
-          600: '#059669',
-          700: '#047857',
-          800: '#065f46',
-          900: '#064e3b',
+        // Neuromotion brand palette, taken from the clinic logo.
+        // To re-theme the whole site, change these three scales only.
+        brand: {   // navy — primary
+          50: '#eef3fa', 100: '#dbe5f4', 200: '#b7cbe9', 300: '#8aa9d6', 400: '#5c82bd',
+          500: '#3a62a0', 600: '#264b82', 700: '#1b3a68', 800: '#142d52', 900: '#0d1f3a',
+        },
+        accent: {  // maroon — highlights
+          50: '#fbeef0', 100: '#f6d9de', 500: '#a82a40', 600: '#8f1f33', 700: '#761828',
+        },
+        gold: {    // gold — details on dark backgrounds
+          300: '#e3c577', 400: '#d4ab53', 500: '#c4953a', 600: '#a67a28',
         },
       },
       animation: {

@@ -26,6 +26,11 @@ class AppointmentType(models.TextChoices):
     TELECONSULT = 'teleconsult', 'Teleconsultation'
 
 
+class VisitType(models.TextChoices):
+    CLINIC = 'clinic', 'At the clinic'
+    HOME = 'home', 'Home visit'
+
+
 class Appointment(models.Model):
     """
     Core appointment model.
@@ -47,6 +52,12 @@ class Appointment(models.Model):
     end_at = models.DateTimeField(null=True, editable=False)
     status = models.CharField(max_length=20, choices=AppointmentStatus.choices, default=AppointmentStatus.SCHEDULED)
     appointment_type = models.CharField(max_length=20, choices=AppointmentType.choices, default=AppointmentType.SCHEDULED)
+
+    # Where the session happens, and what it cost at the time of booking.
+    # fee_amount is a snapshot (KES) so later rate changes never rewrite history.
+    visit_type = models.CharField(max_length=10, choices=VisitType.choices, default=VisitType.CLINIC)
+    home_address = models.TextField(blank=True)
+    fee_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
 
     # Notes
     reason_for_visit = models.TextField(blank=True)

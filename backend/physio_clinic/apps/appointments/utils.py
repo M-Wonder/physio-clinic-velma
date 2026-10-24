@@ -3,6 +3,7 @@ Appointment availability utilities.
 Handles real-time slot calculation with Redis caching.
 """
 import logging
+from decimal import Decimal
 from datetime import datetime, timedelta, date
 from typing import List, Dict
 from django.conf import settings
@@ -89,6 +90,13 @@ def get_available_slots(doctor, date_str: str) -> List[Dict]:
 
     cache.set(cache_key, slots, CACHE_TTL)
     return slots
+
+
+def get_session_fee(visit_type) -> Decimal:
+    """Session fee in KES for a visit type — rates come from settings (CLINIC_*_FEE)."""
+    from physio_clinic.apps.appointments.models import VisitType
+    amount = settings.CLINIC_HOME_VISIT_FEE if visit_type == VisitType.HOME else settings.CLINIC_SESSION_FEE
+    return Decimal(amount)
 
 
 def invalidate_slot_cache(doctor_id: int, date_str: str):

@@ -123,7 +123,7 @@ class PatientProfileSerializer(serializers.ModelSerializer):
 
     def get_primary_doctor_name(self, obj):
         if obj.primary_doctor:
-            return f"Dr. {obj.primary_doctor.user.get_full_name()}"
+            return obj.primary_doctor.user.get_full_name()
         return None
 
 

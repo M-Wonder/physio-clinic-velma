@@ -1,10 +1,11 @@
 """
-PhysioClinic URL Configuration
+Neuromotion Physiotherapy Clinic — URL Configuration
 """
 from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from physio_clinic.views import ClinicInfoView
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
 
 urlpatterns = [
@@ -12,6 +13,8 @@ urlpatterns = [
 
     # API v1 routes
     path('api/', include([
+        # Public clinic identity, contact details and rates
+        path('clinic/', ClinicInfoView.as_view(), name='clinic-info'),
         # Auth endpoints
         path('auth/', include('physio_clinic.apps.accounts.urls')),
         # Services

@@ -69,6 +69,16 @@ services:
         value: ""
       - key: TWILIO_PHONE_NUMBER
         value: ""
+      - key: TIME_ZONE
+        value: Africa/Nairobi
+      - key: CLINIC_NAME
+        value: Neuromotion Physiotherapy Clinic
+      - key: CLINIC_PHONE
+        sync: false        # Set in Render dashboard (real number)
+      - key: CLINIC_WHATSAPP
+        sync: false
+      - key: CLINIC_ADDRESS
+        sync: false
 
   # ── React Frontend (Static Site) ─────────────────────────────
   - type: web
@@ -81,7 +91,7 @@ services:
       - key: VITE_API_URL
         value: https://physio-clinic-backend-be8j.onrender.com/api
       - key: VITE_APP_NAME
-        value: PhysioClinic
+        value: Neuromotion Physiotherapy Clinic
     routes:
       - type: rewrite
         source: /*

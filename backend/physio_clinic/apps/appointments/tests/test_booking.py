@@ -4,6 +4,7 @@ Tests: booking, double-booking prevention, cancellation, rescheduling.
 """
 import threading
 from datetime import date, time, timedelta
+from django.core.cache import cache
 from django.test import TestCase, TransactionTestCase
 from django.utils import timezone
 from rest_framework.test import APIClient
@@ -26,6 +27,10 @@ class AppointmentTestMixin:
         return user
 
     def create_doctor_with_schedule(self, email='doctor@test.com'):
+        # Slot availability is cached in Redis keyed by doctor id, and every test
+        # run recreates the DB with the same ids — clear it so a previous run's
+        # cached slots can't leak into this one.
+        cache.clear()
         user = self.create_user(email, UserRole.DOCTOR)
         doctor = DoctorProfile.objects.create(user=user, license_number=f'LIC-{email[:5]}')
         # Schedule: Monday-Friday, 9-17
@@ -180,3 +185,50 @@ class AppointmentAuthTest(AppointmentTestMixin, TestCase):
             'start_time': '09:00',
         })
         self.assertEqual(resp.status_code, 401)
+
+
+class VisitTypeAndFeeTest(AppointmentTestMixin, TestCase):
+    """Clinic vs home visit: fee snapshot and home-address rules."""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.doctor = self.create_doctor_with_schedule()
+        self.patient_user = self.create_user('patient@test.com')
+        PatientProfile.objects.create(user=self.patient_user)
+        self.service = self.create_service()
+        self.client.force_authenticate(user=self.patient_user)
+
+    def _book(self, **extra):
+        return self.client.post('/api/appointments/book/', {
+            'doctor_id': self.doctor.id,
+            'service_id': self.service.id,
+            'appointment_date': self.get_next_weekday().isoformat(),
+            'start_time': '09:00',
+            **extra,
+        })
+
+    def test_default_is_clinic_visit_with_clinic_fee(self):
+        resp = self._book()
+        self.assertEqual(resp.status_code, 201)
+        appt = Appointment.objects.get()
+        self.assertEqual(appt.visit_type, 'clinic')
+        self.assertEqual(appt.home_address, '')
+        self.assertEqual(appt.fee_amount, 4500)
+
+    def test_home_visit_requires_address(self):
+        resp = self._book(visit_type='home')
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(Appointment.objects.count(), 0)
+
+    def test_home_visit_saves_address_and_home_fee(self):
+        resp = self._book(visit_type='home', home_address='Apt 4, Example Road, Nairobi')
+        self.assertEqual(resp.status_code, 201)
+        appt = Appointment.objects.get()
+        self.assertEqual(appt.visit_type, 'home')
+        self.assertEqual(appt.home_address, 'Apt 4, Example Road, Nairobi')
+        self.assertEqual(appt.fee_amount, 5500)
+
+    def test_clinic_visit_ignores_any_address_sent(self):
+        resp = self._book(visit_type='clinic', home_address='should be dropped')
+        self.assertEqual(resp.status_code, 201)
+        self.assertEqual(Appointment.objects.get().home_address, '')

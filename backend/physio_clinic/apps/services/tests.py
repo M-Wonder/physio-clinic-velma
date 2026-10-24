@@ -7,6 +7,10 @@ from physio_clinic.apps.services.models import Service, ServiceCategory
 class ServiceCatalogTest(TestCase):
     def setUp(self):
         self.client = APIClient()
+        # The clinic's real catalogue is loaded by migration 0002 — clear it so
+        # these tests control exactly which services exist.
+        Service.objects.all().delete()
+        ServiceCategory.objects.all().delete()
         cat = ServiceCategory.objects.create(name='Physio')
         Service.objects.create(
             name='Sports Injury', slug='sports-injury',
@@ -35,3 +39,15 @@ class ServiceCatalogTest(TestCase):
         resp = self.client.get('/api/services/sports-injury/')
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.data['name'], 'Sports Injury')
+
+
+
+class NeuromotionCatalogueTest(TestCase):
+    """The migration seeds the clinic's six services so a fresh database is usable."""
+
+    def test_six_active_services_are_loaded(self):
+        resp = APIClient().get('/api/services/')
+        names = [s['name'] for s in resp.data['results']]
+        self.assertEqual(resp.data['count'], 6)
+        self.assertIn('Home Physiotherapy', names)
+        self.assertIn("Women's Health Physiotherapy", names)
