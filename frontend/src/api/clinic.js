@@ -10,8 +10,8 @@ import api from './client'
 export const FALLBACK_CLINIC = {
   name: 'Neuromotion Physiotherapy Clinic',
   tagline: 'Move Better. Feel Better.',
-  phone: '',
-  whatsapp: '',
+  phone: '+254 700 123 456',
+  whatsapp: '+254 700 123 456',
   email: 'neuromotionphysio@gmail.com',
   address: 'Nairobi, Kenya',
   social_handle: 'neuromotionphysio',
